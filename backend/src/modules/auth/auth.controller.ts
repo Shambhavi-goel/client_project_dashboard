@@ -37,8 +37,8 @@ export class AuthController {
 
   static async refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      // Prioritize HttpOnly cookie; fallback to request body if client provides it
-      const rawToken = req.cookies[REFRESH_COOKIE_NAME] || req.body?.refreshToken;
+      // Prioritize the client tab's active session token over ambient browser cookies
+      const rawToken = req.body?.refreshToken || req.cookies[REFRESH_COOKIE_NAME];
 
       if (!rawToken) {
         throw new UnauthorizedError('No refresh token provided');
@@ -63,7 +63,7 @@ export class AuthController {
 
   static async logout(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const rawToken = req.cookies[REFRESH_COOKIE_NAME] || req.body?.refreshToken;
+      const rawToken = req.body?.refreshToken || req.cookies[REFRESH_COOKIE_NAME];
 
       if (rawToken) {
         await AuthService.logout(rawToken);

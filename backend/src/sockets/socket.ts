@@ -66,7 +66,20 @@ export function setupSocketIO(httpServer: HttpServer): Server {
       });
     }
 
-    // 3. Handle Disconnect
+    // 3. Dynamic project room subscription for active viewers
+    socket.on('project:join', (projectId: string) => {
+      if (projectId && typeof projectId === 'string') {
+        socket.join(`project:${projectId}`);
+      }
+    });
+
+    socket.on('project:leave', (projectId: string) => {
+      if (projectId && typeof projectId === 'string') {
+        socket.leave(`project:${projectId}`);
+      }
+    });
+
+    // 4. Handle Disconnect
     socket.on('disconnect', () => {
       PresenceManager.handleDisconnect(user.id, io);
     });

@@ -3,6 +3,7 @@ import { Role } from '@prisma/client';
 import { NotFoundError, BadRequestError } from '../../middleware/errorHandler';
 import { AuthUser } from '../../types/express';
 import { CreateProjectInput, UpdateProjectInput } from './projects.schemas';
+import { SocketEmitters } from '../../sockets/emitters';
 
 export class ProjectsService {
   /**
@@ -33,6 +34,9 @@ export class ProjectsService {
         },
         createdBy: {
           select: { id: true, name: true, email: true },
+        },
+        tasks: {
+          select: { id: true, status: true, isOverdue: true, dueDate: true, priority: true },
         },
         _count: {
           select: {
@@ -101,7 +105,7 @@ export class ProjectsService {
     // If PM, creator must be PM self; If ADMIN, can specify or defaults to self
     const createdById = user.role === Role.PM ? user.id : (input.createdById || user.id);
 
-    return prisma.project.create({
+    const project = await prisma.project.create({
       data: {
         name: input.name,
         clientId: input.clientId,
@@ -114,6 +118,10 @@ export class ProjectsService {
         },
       },
     });
+
+    SocketEmitters.emitProjectCreated(project);
+
+    return project;
   }
 
   /**

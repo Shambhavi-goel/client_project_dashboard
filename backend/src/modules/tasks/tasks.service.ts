@@ -3,6 +3,7 @@ import { Role, TaskStatus, TaskPriority, NotificationType } from '@prisma/client
 import { NotFoundError, BadRequestError } from '../../middleware/errorHandler';
 import { AuthUser } from '../../types/express';
 import { CreateTaskInput, UpdateTaskInput, TaskFilterQuery } from './tasks.schemas';
+import { SocketEmitters } from '../../sockets/emitters';
 
 // Human-friendly status string formatter
 export function formatStatus(status: TaskStatus): string {
@@ -41,6 +42,16 @@ export function setTaskStatusChangeHook(hook: TaskStatusChangeHook) {
 
 export function setTaskCreatedHook(hook: TaskCreatedHook) {
   onTaskCreated = hook;
+}
+
+export function markOverdueTasks<T extends { dueDate: Date | string | null; status: TaskStatus; isOverdue: boolean }>(tasks: T[]): T[] {
+  const now = Date.now();
+  return tasks.map((t) => {
+    if (t.dueDate && t.status !== TaskStatus.DONE && new Date(t.dueDate).getTime() < now) {
+      return { ...t, isOverdue: true };
+    }
+    return t;
+  });
 }
 
 export class TasksService {
@@ -128,7 +139,7 @@ export class TasksService {
     // 2. Fetch scoped tasks
     const where = this.buildWhereClause(projectId, user, filters);
 
-    return prisma.task.findMany({
+    const tasks = await prisma.task.findMany({
       where,
       include: {
         assignedDeveloper: {
@@ -143,6 +154,8 @@ export class TasksService {
         { dueDate: 'asc' },
       ],
     });
+
+    return markOverdueTasks(tasks);
   }
 
   /**
@@ -156,7 +169,7 @@ export class TasksService {
       where.assignedDeveloperId = user.id;
     }
 
-    return prisma.task.findMany({
+    const tasks = await prisma.task.findMany({
       where,
       include: {
         assignedDeveloper: {
@@ -171,6 +184,8 @@ export class TasksService {
         { dueDate: 'asc' },
       ],
     });
+
+    return markOverdueTasks(tasks);
   }
 
   /**
@@ -291,6 +306,9 @@ export class TasksService {
         console.error('Task created hook error:', err);
       }
     }
+
+    // Broadcast real-time task creation to project rooms
+    SocketEmitters.emitTaskCreated(task);
 
     return task;
   }
@@ -416,8 +434,12 @@ export class TasksService {
       throw new NotFoundError('Task not found');
     }
 
-    return prisma.task.delete({
+    const deleted = await prisma.task.delete({
       where: { id },
     });
+
+    SocketEmitters.emitTaskDeleted(id, task.projectId);
+
+    return deleted;
   }
 }

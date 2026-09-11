@@ -1,8 +1,10 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useAuthStore } from '../auth/authStore';
 
 let sharedSocket: Socket | null = null;
+let currentToken: string | null = null;
+const stateSubscribers = new Set<(s: Socket | null, connected: boolean) => void>();
 
 export function getSharedSocket(): Socket | null {
   return sharedSocket;
@@ -10,23 +12,49 @@ export function getSharedSocket(): Socket | null {
 
 export function useSocket() {
   const { accessToken, isAuthenticated } = useAuthStore();
-  const [isConnected, setIsConnected] = useState(false);
-  const socketRef = useRef<Socket | null>(null);
+  const [socket, setSocket] = useState<Socket | null>(sharedSocket);
+  const [isConnected, setIsConnected] = useState(sharedSocket?.connected || false);
 
   useEffect(() => {
+    const subscriber = (s: Socket | null, connected: boolean) => {
+      setSocket(s);
+      setIsConnected(connected);
+    };
+    stateSubscribers.add(subscriber);
+
+    // If not authenticated, disconnect shared socket if active
     if (!isAuthenticated || !accessToken) {
       if (sharedSocket) {
         sharedSocket.disconnect();
         sharedSocket = null;
-        setIsConnected(false);
+        currentToken = null;
+        stateSubscribers.forEach((sub) => sub(null, false));
       }
-      return;
+      return () => {
+        stateSubscribers.delete(subscriber);
+      };
     }
 
-    const socketUrl = import.meta.env.VITE_API_URL || '/';
+    // If socket exists and token has not changed, keep it
+    if (sharedSocket && currentToken === accessToken) {
+      setSocket(sharedSocket);
+      setIsConnected(sharedSocket.connected);
+      return () => {
+        stateSubscribers.delete(subscriber);
+      };
+    }
 
-    // Connect socket with Bearer token
-    const socket = io(socketUrl, {
+    // If token changed or socket not created yet, create new connection
+    if (sharedSocket) {
+      sharedSocket.disconnect();
+      sharedSocket = null;
+    }
+
+    currentToken = accessToken;
+    const rawApi = import.meta.env.VITE_API_URL;
+    const socketUrl = rawApi ? rawApi.replace(/\/api\/?$/, '') : '/';
+
+    const s = io(socketUrl, {
       auth: { token: accessToken },
       transports: ['websocket', 'polling'],
       reconnection: true,
@@ -34,31 +62,29 @@ export function useSocket() {
       reconnectionDelay: 1000,
     });
 
-    sharedSocket = socket;
-    socketRef.current = socket;
+    sharedSocket = s;
+    stateSubscribers.forEach((sub) => sub(s, s.connected));
 
-    socket.on('connect', () => {
-      setIsConnected(true);
+    s.on('connect', () => {
+      stateSubscribers.forEach((sub) => sub(s, true));
     });
 
-    socket.on('disconnect', () => {
-      setIsConnected(false);
+    s.on('disconnect', () => {
+      stateSubscribers.forEach((sub) => sub(s, false));
     });
 
-    socket.on('connect_error', (err) => {
+    s.on('connect_error', (err) => {
       console.warn('Socket connection error:', err.message);
-      setIsConnected(false);
+      stateSubscribers.forEach((sub) => sub(s, false));
     });
 
     return () => {
-      socket.disconnect();
-      sharedSocket = null;
-      setIsConnected(false);
+      stateSubscribers.delete(subscriber);
     };
   }, [accessToken, isAuthenticated]);
 
   return {
-    socket: socketRef.current || sharedSocket,
+    socket,
     isConnected,
   };
 }

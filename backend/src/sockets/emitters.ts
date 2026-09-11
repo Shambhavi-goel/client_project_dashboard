@@ -68,14 +68,53 @@ export class SocketEmitters {
 
     // 1. Cross-project feed for Admins
     ioInstance.to('global:admin').emit('activity:new', payload);
+    ioInstance.to('global:admin').emit('task:updated', payload.task);
 
-    // 2. Project Managers room (owning PM + Admins)
+    // 2. Project Viewers room (ALL users currently viewing this project)
+    ioInstance.to(`project:${taskInfo.projectId}`).emit('activity:new', payload);
+    ioInstance.to(`project:${taskInfo.projectId}`).emit('task:updated', payload.task);
+
+    // 3. Project Managers room (owning PM + Admins)
     ioInstance.to(`project:${taskInfo.projectId}:managers`).emit('activity:new', payload);
+    ioInstance.to(`project:${taskInfo.projectId}:managers`).emit('task:updated', payload.task);
 
-    // 3. Assigned developer's personal room ONLY (never other developers!)
+    // 4. Assigned developer's personal room
     if (taskInfo.assignedDeveloperId) {
       ioInstance.to(`user:${taskInfo.assignedDeveloperId}`).emit('activity:new', payload);
+      ioInstance.to(`user:${taskInfo.assignedDeveloperId}`).emit('task:updated', payload.task);
     }
+  }
+
+  /**
+   * Emits task:created event
+   */
+  static emitTaskCreated(task: any): void {
+    if (!ioInstance) return;
+    ioInstance.to(`project:${task.projectId}`).emit('task:created', task);
+    ioInstance.to(`project:${task.projectId}:managers`).emit('task:created', task);
+    ioInstance.to('global:admin').emit('task:created', task);
+    if (task.assignedDeveloperId) {
+      ioInstance.to(`user:${task.assignedDeveloperId}`).emit('task:created', task);
+    }
+  }
+
+  /**
+   * Emits task:deleted event
+   */
+  static emitTaskDeleted(taskId: string, projectId: string): void {
+    if (!ioInstance) return;
+    ioInstance.to(`project:${projectId}`).emit('task:deleted', { taskId, projectId });
+    ioInstance.to(`project:${projectId}:managers`).emit('task:deleted', { taskId, projectId });
+    ioInstance.to('global:admin').emit('task:deleted', { taskId, projectId });
+  }
+
+  /**
+   * Emits project:created event
+   */
+  static emitProjectCreated(project: any): void {
+    if (!ioInstance) return;
+    ioInstance.to('global:admin').emit('project:created', project);
+    ioInstance.to(`user:${project.createdById}`).emit('project:created', project);
   }
 
   /**

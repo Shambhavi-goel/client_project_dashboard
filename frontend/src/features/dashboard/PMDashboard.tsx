@@ -10,6 +10,8 @@ import {
   Calendar,
   Clock,
   ArrowRight,
+  Building,
+  AlertTriangle,
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -120,6 +122,137 @@ export const PMDashboard: React.FC = () => {
             Requires milestone review
           </span>
         </div>
+      </div>
+
+      {/* Managed Projects Summary */}
+      <div className="glass-card p-6 border border-white/10 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <FolderKanban className="w-5 h-5 text-brand-400" />
+              My Projects Summary
+            </h2>
+            <p className="text-surface-200 text-xs mt-0.5">
+              Comprehensive overview of deliverables, health, and completion across your managed projects
+            </p>
+          </div>
+          <Link
+            to="/projects"
+            className="text-xs text-brand-300 hover:text-brand-200 font-medium inline-flex items-center gap-1"
+          >
+            All Projects <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        {isProjectsLoading ? (
+          <div className="py-8 text-center text-surface-200 text-sm">Loading project summaries...</div>
+        ) : myProjects.length === 0 ? (
+          <div className="py-8 text-center text-surface-200 text-sm">
+            You don't have any managed projects yet.{' '}
+            <Link to="/projects" className="text-brand-400 hover:underline">
+              Create a project
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
+            {myProjects.map((project) => {
+              const pTasks = project.tasks || [];
+              const total = project._count?.tasks ?? pTasks.length;
+              const done = pTasks.filter((t) => t.status === 'DONE').length;
+              const inReview = pTasks.filter((t) => t.status === 'IN_REVIEW').length;
+              const inProgress = pTasks.filter((t) => t.status === 'IN_PROGRESS').length;
+              const todo = pTasks.filter((t) => t.status === 'TODO').length;
+              const overdue = pTasks.filter(
+                (t) =>
+                  t.status !== 'DONE' &&
+                  (t.isOverdue || (t.dueDate && new Date(t.dueDate).getTime() < Date.now()))
+              ).length;
+              const percent = total > 0 ? Math.round((done / total) * 100) : 0;
+
+              return (
+                <div
+                  key={project.id}
+                  className="rounded-xl bg-surface-900/60 border border-white/10 p-4 hover:border-brand-500/40 transition-all flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-sm font-bold text-white line-clamp-1">{project.name}</h3>
+                      <Link
+                        to={`/projects/${project.id}`}
+                        className="text-brand-400 hover:text-brand-300 shrink-0 p-1 rounded-lg hover:bg-brand-500/10 transition-colors"
+                        title="Open Project"
+                      >
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
+                    </div>
+
+                    {project.client && (
+                      <div className="flex items-center gap-1.5 text-xs text-surface-200 mt-1">
+                        <Building className="w-3.5 h-3.5 text-surface-400 shrink-0" />
+                        <span className="truncate">{project.client.name}</span>
+                      </div>
+                    )}
+
+                    {/* Progress Bar */}
+                    <div className="mt-4">
+                      <div className="flex justify-between text-xs font-semibold mb-1.5">
+                        <span className="text-surface-200">Progress</span>
+                        <span className={percent === 100 ? 'text-emerald-400' : 'text-brand-300'}>
+                          {percent}% ({done}/{total} done)
+                        </span>
+                      </div>
+                      <div className="h-2 w-full bg-surface-800 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-500 ${
+                            percent === 100
+                              ? 'bg-emerald-500'
+                              : 'bg-gradient-to-r from-brand-500 to-accent-500'
+                          }`}
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Task Status Breakdown Tags */}
+                  <div className="pt-4 mt-4 border-t border-white/5 grid grid-cols-4 gap-1.5 text-center">
+                    <div className="bg-surface-800/80 rounded-lg p-1.5">
+                      <span className="text-[10px] text-surface-400 block font-medium">To Do</span>
+                      <span className="text-xs font-bold text-surface-200">{todo}</span>
+                    </div>
+                    <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-lg p-1.5">
+                      <span className="text-[10px] text-indigo-300 block font-medium">Active</span>
+                      <span className="text-xs font-bold text-indigo-200">{inProgress}</span>
+                    </div>
+                    <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-1.5">
+                      <span className="text-[10px] text-amber-300 block font-medium">Review</span>
+                      <span className="text-xs font-bold text-amber-200">{inReview}</span>
+                    </div>
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-1.5">
+                      <span className="text-[10px] text-emerald-300 block font-medium">Done</span>
+                      <span className="text-xs font-bold text-emerald-200">{done}</span>
+                    </div>
+                  </div>
+
+                  {overdue > 0 && (
+                    <div className="mt-2.5 flex items-center justify-between text-xs px-2.5 py-1.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                        {overdue} Overdue {overdue === 1 ? 'task' : 'tasks'}
+                      </span>
+                      <Link
+                        to={`/projects/${project.id}`}
+                        className="text-[11px] underline hover:text-rose-200"
+                      >
+                        Inspect
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Priority Breakdown Row */}

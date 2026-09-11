@@ -36,6 +36,13 @@ export interface Project {
   createdAt: string;
   client?: Client;
   createdBy?: User;
+  tasks?: Array<{
+    id: string;
+    status: TaskStatus;
+    isOverdue: boolean;
+    dueDate?: string | null;
+    priority: TaskPriority;
+  }>;
   _count?: {
     tasks: number;
   };

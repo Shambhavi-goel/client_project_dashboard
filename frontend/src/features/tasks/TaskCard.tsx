@@ -71,22 +71,29 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, showProject = true }) 
         </div>
 
         {/* Due Date & Overdue flag */}
-        {task.dueDate && (
-          <div
-            className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium ${
-              task.isOverdue && task.status !== 'DONE'
-                ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                : 'text-surface-200'
-            }`}
-          >
-            {task.isOverdue && task.status !== 'DONE' ? (
-              <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
-            ) : (
-              <Calendar className="w-3.5 h-3.5" />
-            )}
-            <span>{format(new Date(task.dueDate), 'MMM d, yyyy')}</span>
-          </div>
-        )}
+        {task.dueDate && (() => {
+          const isOverdue =
+            task.status !== 'DONE' &&
+            (task.isOverdue || new Date(task.dueDate).getTime() < Date.now());
+
+          return (
+            <div
+              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium ${
+                isOverdue
+                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                  : 'text-surface-200'
+              }`}
+            >
+              {isOverdue ? (
+                <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+              ) : (
+                <Calendar className="w-3.5 h-3.5" />
+              )}
+              <span>{format(new Date(task.dueDate), 'MMM d, yyyy')}</span>
+              {isOverdue && <span className="font-bold text-[10px] ml-0.5">(Overdue)</span>}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

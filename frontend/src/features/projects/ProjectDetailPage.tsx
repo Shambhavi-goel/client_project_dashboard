@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
@@ -8,6 +8,7 @@ import { TaskCard } from '../tasks/TaskCard';
 import { TaskFilters } from '../tasks/TaskFilters';
 import { CreateTaskModal } from '../tasks/CreateTaskModal';
 import { ActivityFeed } from '../activity/ActivityFeed';
+import { useSocket } from '../../hooks/useSocket';
 import {
   ArrowLeft,
   Building,
@@ -20,8 +21,20 @@ import {
 export const ProjectDetailPage: React.FC = () => {
   const { id: projectId } = useParams<{ id: string }>();
   const { user } = useAuthStore();
+  const { socket } = useSocket();
   const [searchParams] = useSearchParams();
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+
+  // Join project room for real-time live updates while viewing this project
+  useEffect(() => {
+    if (!socket || !projectId) return;
+
+    socket.emit('project:join', projectId);
+
+    return () => {
+      socket.emit('project:leave', projectId);
+    };
+  }, [socket, projectId]);
 
   // Fetch Project Details (scoped, returns 404 if unauthorized)
   const { data: project, isLoading: isProjectLoading, error: projectError } = useQuery<Project>({

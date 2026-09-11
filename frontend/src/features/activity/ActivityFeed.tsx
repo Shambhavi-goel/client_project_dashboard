@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
 import { TaskActivityLog } from '../../types';
-import { getSharedSocket } from '../../hooks/useSocket';
+import { useSocket } from '../../hooks/useSocket';
 import { Activity, ArrowRight, Clock, User as UserIcon } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -18,9 +18,10 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
   limit = 20,
 }) => {
   const [liveLogs, setLiveLogs] = useState<TaskActivityLog[]>([]);
+  const { socket } = useSocket();
 
-  // 1. Catch-up: fetch initial feed from PostgreSQL REST endpoint
-  const { data: initialLogs, isLoading } = useQuery<TaskActivityLog[]>({
+  // 1. Catch-up: fetch initial feed from PostgreSQL REST endpoint (database backed, not in-memory)
+  const { data: initialLogs, isLoading, refetch } = useQuery<TaskActivityLog[]>({
     queryKey: ['activityFeed', projectId, limit],
     queryFn: async () => {
       const url = projectId
@@ -38,9 +39,27 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
     }
   }, [initialLogs]);
 
+  // Refetch latest 20 events from database when coming back online or reconnecting
+  useEffect(() => {
+    const handleReconnect = () => {
+      refetch();
+    };
+
+    window.addEventListener('online', handleReconnect);
+    if (socket) {
+      socket.on('connect', handleReconnect);
+    }
+
+    return () => {
+      window.removeEventListener('online', handleReconnect);
+      if (socket) {
+        socket.off('connect', handleReconnect);
+      }
+    };
+  }, [socket, refetch]);
+
   // 2. Real-time subscription: listen for activity:new on Socket.io
   useEffect(() => {
-    const socket = getSharedSocket();
     if (!socket) return;
 
     const handleNewActivity = (activity: TaskActivityLog) => {
@@ -60,7 +79,7 @@ export const ActivityFeed: React.FC<ActivityFeedProps> = ({
     return () => {
       socket.off('activity:new', handleNewActivity);
     };
-  }, [projectId, limit]);
+  }, [socket, projectId, limit]);
 
   const formatStatusPill = (status?: string | null) => {
     if (!status) return null;

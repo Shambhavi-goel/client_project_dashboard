@@ -12,15 +12,31 @@ interface AuthState {
   checkAuth: () => Promise<boolean>;
 }
 
+const getStoredUser = (): User | null => {
+  try {
+    const raw = localStorage.getItem('cpd_user');
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const initialUser = getStoredUser();
+
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
+  user: initialUser,
   accessToken: null,
-  isAuthenticated: false,
-  isLoading: true,
+  isAuthenticated: !!initialUser,
+  isLoading: !initialUser,
 
   setAuth: (user, accessToken, refreshToken) => {
-    if (refreshToken) {
-      localStorage.setItem('cpd_fallback_refresh', refreshToken);
+    try {
+      localStorage.setItem('cpd_user', JSON.stringify(user));
+      if (refreshToken) {
+        localStorage.setItem('cpd_fallback_refresh', refreshToken);
+      }
+    } catch {
+      // Ignore storage errors
     }
     set({
       user,
@@ -31,7 +47,12 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   clearAuth: () => {
-    localStorage.removeItem('cpd_fallback_refresh');
+    try {
+      localStorage.removeItem('cpd_user');
+      localStorage.removeItem('cpd_fallback_refresh');
+    } catch {
+      // Ignore storage errors
+    }
     set({
       user: null,
       accessToken: null,
@@ -58,8 +79,13 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       if (res.data?.success && res.data?.data) {
         const { user, accessToken, refreshToken } = res.data.data;
-        if (refreshToken) {
-          localStorage.setItem('cpd_fallback_refresh', refreshToken);
+        try {
+          localStorage.setItem('cpd_user', JSON.stringify(user));
+          if (refreshToken) {
+            localStorage.setItem('cpd_fallback_refresh', refreshToken);
+          }
+        } catch {
+          // Ignore storage errors
         }
         set({
           user,
@@ -73,7 +99,12 @@ export const useAuthStore = create<AuthState>((set) => ({
       // No active session or expired
     }
 
-    localStorage.removeItem('cpd_fallback_refresh');
+    try {
+      localStorage.removeItem('cpd_user');
+      localStorage.removeItem('cpd_fallback_refresh');
+    } catch {
+      // Ignore storage errors
+    }
     set({
       user: null,
       accessToken: null,

@@ -78,14 +78,17 @@ export async function runOverdueScan(): Promise<number> {
   return overdueTasks.length;
 }
 
-// Initializes and starts node-cron scanner (runs every 5 minutes)
+// Initializes and starts node-cron scanner (runs immediately and every minute)
 export function startOverdueScanner(): ScheduledTask {
   if (cronTask) {
     return cronTask;
   }
 
-  // Every 5 minutes
-  cronTask = cron.schedule('*/5 * * * *', async () => {
+  // Run immediate scan on startup
+  runOverdueScan().catch((err) => console.error('Initial overdue scan error:', err));
+
+  // Run every minute for prompt overdue detection
+  cronTask = cron.schedule('* * * * *', async () => {
     try {
       await runOverdueScan();
     } catch (err) {
@@ -93,7 +96,7 @@ export function startOverdueScanner(): ScheduledTask {
     }
   });
 
-  console.log('⏱️  Background job: Overdue scanner scheduled (every 5 minutes)');
+  console.log('⏱️  Background job: Overdue scanner scheduled (every minute + initial run)');
   return cronTask;
 }
 

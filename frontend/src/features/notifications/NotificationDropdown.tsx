@@ -3,13 +3,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
 import { Notification } from '../../types';
 import { Bell, Check, CheckCheck, Clock, AlertTriangle, UserCheck, Eye } from 'lucide-react';
-import { getSharedSocket } from '../../hooks/useSocket';
+import { useSocket } from '../../hooks/useSocket';
 import { formatDistanceToNow } from 'date-fns';
 
 export const NotificationDropdown: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const queryClient = useQueryClient();
+  const { socket } = useSocket();
 
   // Fetch notifications
   const { data, isLoading } = useQuery<{
@@ -28,7 +29,6 @@ export const NotificationDropdown: React.FC = () => {
 
   // Listen for real-time notification:new WebSocket events
   useEffect(() => {
-    const socket = getSharedSocket();
     if (!socket) return;
 
     const handleNewNotification = (payload: { notification: Notification; unreadCount: number }) => {
@@ -38,19 +38,21 @@ export const NotificationDropdown: React.FC = () => {
           if (!old) {
             return { notifications: [payload.notification], unreadCount: payload.unreadCount };
           }
+          const exists = old.notifications.some((n) => n.id === payload.notification.id);
           return {
-            notifications: [payload.notification, ...old.notifications],
+            notifications: exists ? old.notifications : [payload.notification, ...old.notifications],
             unreadCount: payload.unreadCount,
           };
         }
       );
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     };
 
     socket.on('notification:new', handleNewNotification);
     return () => {
       socket.off('notification:new', handleNewNotification);
     };
-  }, [queryClient]);
+  }, [socket, queryClient]);
 
   // Mark single notification read
   const markReadMutation = useMutation({
@@ -114,8 +116,8 @@ export const NotificationDropdown: React.FC = () => {
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-3 w-80 sm:w-96 glass-card border border-white/15 shadow-2xl z-50 overflow-hidden animate-slide-down">
-          <div className="p-4 border-b border-white/10 flex items-center justify-between">
+        <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-surface-900 border border-surface-700 shadow-2xl rounded-2xl z-50 overflow-hidden animate-slide-down">
+          <div className="p-4 bg-surface-800/90 border-b border-surface-700 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="font-semibold text-white text-sm">Notifications</span>
               {unreadCount > 0 && (
@@ -129,7 +131,7 @@ export const NotificationDropdown: React.FC = () => {
               <button
                 onClick={() => markAllReadMutation.mutate()}
                 disabled={markAllReadMutation.isPending}
-                className="text-xs text-brand-300 hover:text-brand-200 flex items-center gap-1 transition-colors"
+                className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1 transition-colors"
               >
                 <CheckCheck className="w-3.5 h-3.5" />
                 Mark all read
@@ -138,7 +140,7 @@ export const NotificationDropdown: React.FC = () => {
           </div>
 
           {/* Notifications List */}
-          <div className="max-h-96 overflow-y-auto divide-y divide-white/5">
+          <div className="max-h-96 overflow-y-auto divide-y divide-surface-800 bg-surface-900">
             {isLoading ? (
               <div className="p-8 text-center text-surface-200 text-sm">Loading notifications...</div>
             ) : notifications.length === 0 ? (
@@ -151,19 +153,19 @@ export const NotificationDropdown: React.FC = () => {
                   key={notif.id}
                   className={`p-3.5 flex items-start gap-3 transition-colors ${
                     !notif.isRead
-                      ? 'bg-brand-500/10 hover:bg-brand-500/15'
-                      : 'hover:bg-white/5 opacity-80'
+                      ? 'bg-brand-500/15 hover:bg-brand-500/20'
+                      : 'hover:bg-surface-800/60 opacity-90'
                   }`}
                 >
-                  <div className="p-2 rounded-lg bg-surface-800/80 mt-0.5">
+                  <div className="p-2 rounded-lg bg-surface-800 border border-surface-700 shrink-0 mt-0.5">
                     {getNotificationIcon(notif.type)}
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs sm:text-sm text-surface-100 font-medium leading-snug break-words">
+                    <p className="text-xs sm:text-sm text-white font-medium leading-snug break-words">
                       {notif.message}
                     </p>
-                    <span className="text-[11px] text-surface-200/70 mt-1 inline-block">
+                    <span className="text-[11px] text-surface-200 mt-1 inline-block">
                       {formatDistanceToNow(new Date(notif.createdAt), { addSuffix: true })}
                     </span>
                   </div>
@@ -172,7 +174,7 @@ export const NotificationDropdown: React.FC = () => {
                     <button
                       onClick={() => markReadMutation.mutate(notif.id)}
                       disabled={markReadMutation.isPending}
-                      className="p-1 rounded-md text-surface-200 hover:text-white hover:bg-white/10 transition-colors"
+                      className="p-1.5 rounded-lg text-surface-200 hover:text-white hover:bg-surface-700 transition-colors shrink-0"
                       title="Mark as read"
                     >
                       <Check className="w-3.5 h-3.5" />
