@@ -1,0 +1,67 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-surface-700;
+  }
+
+  body {
+    @apply bg-surface-900 text-white font-sans;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-surface-800 rounded;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-surface-700 rounded hover:bg-brand-600;
+  }
+}
+
+@layer components {
+  /* Glassmorphism card */
+  .glass-card {
+    @apply bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-gradient-to-r from-brand-400 to-brand-200 bg-clip-text text-transparent;
+  }
+
+  /* Status badges */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-todo {
+    @apply bg-slate-500/20 text-slate-300;
+  }
+  .badge-in-progress {
+    @apply bg-blue-500/20 text-blue-300;
+  }
+  .badge-in-review {
+    @apply bg-amber-500/20 text-amber-300;
+  }
+  .badge-done {
+    @apply bg-emerald-500/20 text-emerald-300;
+  }
+
+  /* Priority badges */
+  .priority-low {
+    @apply bg-slate-500/20 text-slate-300;
+  }
+  .priority-medium {
+    @apply bg-blue-500/20 text-blue-300;
+  }
+  .priority-high {
+    @apply bg-orange-500/20 text-orange-300;
+  }
+  .priority-critical {
+    @apply bg-red-500/20 text-red-300;
+  }
+}
