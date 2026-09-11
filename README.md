@@ -174,85 +174,91 @@ For rapid evaluation, 7 pre-configured accounts are seeded across all roles. All
 
 ```mermaid
 erDiagram
-    User ||--o{ Project : "creates (PM)"
-    User ||--o{ Task : "assigned to (Developer)"
-    User ||--o{ TaskActivityLog : "performs"
-    User ||--o{ Notification : "receives"
-    User ||--o{ RefreshToken : "owns"
-    Client ||--o{ Project : "has"
-    Project ||--o{ Task : "contains"
-    Project ||--o{ TaskActivityLog : "logs"
-    Task ||--o{ TaskActivityLog : "has logs"
-    Task ||--o{ Notification : "references"
+    USER ||--o{ PROJECT : creates
+    USER ||--o{ TASK : assigned_to
+    USER ||--o{ TASK_ACTIVITY_LOG : performs
+    USER ||--o{ NOTIFICATION : receives
+    USER ||--o{ REFRESH_TOKEN : owns
+    CLIENT ||--o{ PROJECT : has
+    PROJECT ||--o{ TASK : contains
+    PROJECT ||--o{ TASK_ACTIVITY_LOG : logs
+    TASK ||--o{ TASK_ACTIVITY_LOG : generates
+    TASK ||--o{ NOTIFICATION : references
 
-    User {
-        String id PK
-        String name
-        String email UK
-        String passwordHash
-        Role role "ADMIN | PM | DEVELOPER"
-        DateTime createdAt
+    USER {
+        string id PK
+        string name
+        string email UK
+        string passwordHash
+        string role
+        datetime createdAt
     }
-
-    Client {
-        String id PK
-        String name
-        String contactEmail
-        DateTime createdAt
+    CLIENT {
+        string id PK
+        string name
+        string contactEmail
+        datetime createdAt
     }
-
-    Project {
-        String id PK
-        String name
-        String clientId FK "idx"
-        String createdById FK "idx"
-        DateTime createdAt
+    PROJECT {
+        string id PK
+        string name
+        string clientId FK
+        string createdById FK
+        datetime createdAt
     }
-
-    Task {
-        String id PK
-        String projectId FK "idx"
-        String title
-        String description
-        String assignedDeveloperId FK "idx"
-        TaskStatus status "TODO | IN_PROGRESS | IN_REVIEW | DONE (idx)"
-        TaskPriority priority "LOW | MEDIUM | HIGH | CRITICAL (idx)"
-        DateTime dueDate "idx"
-        Boolean isOverdue "idx"
-        DateTime createdAt
-        DateTime updatedAt
+    TASK {
+        string id PK
+        string projectId FK
+        string title
+        string description
+        string assignedDeveloperId FK
+        string status
+        string priority
+        datetime dueDate
+        boolean isOverdue
+        datetime createdAt
+        datetime updatedAt
     }
-
-    TaskActivityLog {
-        String id PK
-        String taskId FK "idx"
-        String projectId FK "idx (composite with createdAt DESC)"
-        String userId FK "nullable for system logs"
-        TaskStatus fromStatus
-        TaskStatus toStatus
-        String message
-        DateTime createdAt
+    TASK_ACTIVITY_LOG {
+        string id PK
+        string taskId FK
+        string projectId FK
+        string userId FK
+        string fromStatus
+        string toStatus
+        string message
+        datetime createdAt
     }
-
-    Notification {
-        String id PK
-        String userId FK "idx (composite with isRead)"
-        NotificationType type
-        String message
-        String relatedTaskId FK "nullable"
-        Boolean isRead
-        DateTime createdAt
+    NOTIFICATION {
+        string id PK
+        string userId FK
+        string type
+        string message
+        string relatedTaskId FK
+        boolean isRead
+        datetime createdAt
     }
-
-    RefreshToken {
-        String id PK
-        String userId FK "idx"
-        String tokenHash "idx"
-        DateTime expiresAt
-        Boolean revoked
-        DateTime createdAt
+    REFRESH_TOKEN {
+        string id PK
+        string userId FK
+        string tokenHash
+        datetime expiresAt
+        boolean revoked
+        datetime createdAt
     }
 ```
+
+### Models & Relational Architecture
+
+| Model | Primary Key | Foreign Keys / Relations | Key Indexes & Enums | Purpose |
+|---|---|---|---|---|
+| **`User`** | `id` (cuid) | `projects`, `tasks`, `logs`, `notifications`, `refreshTokens` | `email` (Unique), `Role` (`ADMIN`, `PM`, `DEVELOPER`) | Identity, credentials, and RBAC authorization |
+| **`Client`** | `id` (cuid) | `projects` | `createdAt` | Client corporate entities associated with projects |
+| **`Project`** | `id` (cuid) | `clientId` ➔ `Client`, `createdById` ➔ `User` (PM) | `clientId`, `createdById` | Top-level project entities with PM ownership |
+| **`Task`** | `id` (cuid) | `projectId` ➔ `Project`, `assignedDeveloperId` ➔ `User` | `status`, `priority`, `dueDate`, `isOverdue`, `assignedDeveloperId` | Core work items with lifecycle state machine |
+| **`TaskActivityLog`** | `id` (cuid) | `taskId` ➔ `Task`, `projectId` ➔ `Project`, `userId` ➔ `User` (nullable) | `@@index([projectId, createdAt(sort: Desc)])`, `taskId` | Immutable audit trail powering real-time activity feeds |
+| **`Notification`** | `id` (cuid) | `userId` ➔ `User`, `relatedTaskId` ➔ `Task` (nullable) | `@@index([userId, isRead])`, `type` enum | Push alerts with unread counter badges |
+| **`RefreshToken`** | `id` (cuid) | `userId` ➔ `User` | `tokenHash` (SHA-256), `userId` | Secure session rotation & breach replay defense |
 
 ### Key Schema Optimizations
 1. **`TaskActivityLog` Composite Index `@@index([projectId, createdAt(sort: Desc)])`**: Optimizes project activity feed queries and initial catch-up ordering.
