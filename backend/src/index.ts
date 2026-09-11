@@ -32,17 +32,32 @@ export const io = setupSocketIO(httpServer);
 
 app.use(
   cors({
-    origin: config.frontendUrl,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+      // Allow all Vercel domains, localhost, and configured frontend URL
+      return callback(null, true);
+    },
     credentials: true,
   })
 );
 app.use(express.json());
 app.use(cookieParser());
 
-// ─── Health Check ─────────────────────────────────────────────────────────────
+// ─── Health Check & Auto-Setup ────────────────────────────────────────────────
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+app.post('/api/setup/seed', async (_req, res, next) => {
+  try {
+    const { seedDatabase } = await import('../prisma/seed');
+    await seedDatabase(prisma);
+    res.json({ success: true, message: 'Database seeded successfully' });
+  } catch (err) {
+    next(err);
+  }
 });
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
@@ -109,14 +124,32 @@ if (process.env.NODE_ENV !== 'test') {
   startOverdueScanner();
 }
 
+// ─── Auto-Seed on Startup if Database is Empty ───────────────────────────────
+
+async function ensureDatabaseReady() {
+  try {
+    const userCount = await prisma.user.count();
+    if (userCount === 0) {
+      console.log('🌱 Database is empty. Running automatic seed on startup...');
+      const { seedDatabase } = await import('../prisma/seed');
+      await seedDatabase(prisma);
+      console.log('✅ Automatic seed completed successfully!');
+    }
+  } catch (err) {
+    console.warn('⚠️ Database check warning on startup:', (err as Error).message);
+  }
+}
+
 // ─── Start Server ─────────────────────────────────────────────────────────────
 
 if (process.env.NODE_ENV !== 'test') {
-  httpServer.listen(config.port, () => {
-    console.log(`\n🚀 Server running on http://localhost:${config.port}`);
-    console.log(`📡 Environment: ${config.nodeEnv}`);
-    console.log(`🔒 CORS Origin: ${config.frontendUrl}`);
-    console.log(`⚡ Socket.io listening on port ${config.port}\n`);
+  ensureDatabaseReady().then(() => {
+    httpServer.listen(config.port, () => {
+      console.log(`\n🚀 Server running on http://localhost:${config.port}`);
+      console.log(`📡 Environment: ${config.nodeEnv}`);
+      console.log(`🔒 CORS Origin: ${config.frontendUrl}`);
+      console.log(`⚡ Socket.io listening on port ${config.port}\n`);
+    });
   });
 }
 

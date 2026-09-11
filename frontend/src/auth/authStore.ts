@@ -7,7 +7,7 @@ interface AuthState {
   accessToken: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  setAuth: (user: User, accessToken: string) => void;
+  setAuth: (user: User, accessToken: string, refreshToken?: string) => void;
   clearAuth: () => void;
   checkAuth: () => Promise<boolean>;
 }
@@ -18,37 +18,49 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: false,
   isLoading: true,
 
-  setAuth: (user, accessToken) =>
+  setAuth: (user, accessToken, refreshToken) => {
+    if (refreshToken) {
+      localStorage.setItem('cpd_fallback_refresh', refreshToken);
+    }
     set({
       user,
       accessToken,
       isAuthenticated: true,
       isLoading: false,
-    }),
+    });
+  },
 
-  clearAuth: () =>
+  clearAuth: () => {
+    localStorage.removeItem('cpd_fallback_refresh');
     set({
       user: null,
       accessToken: null,
       isAuthenticated: false,
       isLoading: false,
-    }),
+    });
+  },
 
   checkAuth: async () => {
     try {
-      const authBase = import.meta.env.VITE_API_URL
-        ? `${import.meta.env.VITE_API_URL}/api`
+      const rawApi = import.meta.env.VITE_API_URL;
+      const authBase = rawApi
+        ? `${rawApi.replace(/\/$/, '')}/api`
         : '/api';
 
-      // Call /api/auth/refresh using credentials so browser sends HttpOnly cookie
+      const fallbackRefresh = localStorage.getItem('cpd_fallback_refresh');
+
+      // Call /api/auth/refresh using credentials so browser sends HttpOnly cookie (or body fallback)
       const res = await axios.post(
         `${authBase}/auth/refresh`,
-        {},
+        { refreshToken: fallbackRefresh || undefined },
         { withCredentials: true }
       );
 
       if (res.data?.success && res.data?.data) {
-        const { user, accessToken } = res.data.data;
+        const { user, accessToken, refreshToken } = res.data.data;
+        if (refreshToken) {
+          localStorage.setItem('cpd_fallback_refresh', refreshToken);
+        }
         set({
           user,
           accessToken,
@@ -61,6 +73,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       // No active session or expired
     }
 
+    localStorage.removeItem('cpd_fallback_refresh');
     set({
       user: null,
       accessToken: null,

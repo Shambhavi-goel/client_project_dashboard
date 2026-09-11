@@ -5,10 +5,12 @@ import { UnauthorizedError } from '../../middleware/errorHandler';
 
 const REFRESH_COOKIE_NAME = 'cpd_refresh_token';
 
+const isProduction = config.nodeEnv === 'production';
+
 const cookieOptions = {
   httpOnly: true,
-  secure: config.nodeEnv === 'production',
-  sameSite: 'strict' as const,
+  secure: isProduction,
+  sameSite: (isProduction ? 'none' : 'lax') as 'none' | 'lax',
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   path: '/',
 };
@@ -25,6 +27,7 @@ export class AuthController {
         data: {
           user,
           accessToken,
+          refreshToken,
         },
       });
     } catch (error) {
@@ -35,7 +38,7 @@ export class AuthController {
   static async refresh(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       // Prioritize HttpOnly cookie; fallback to request body if client provides it
-      const rawToken = req.cookies[REFRESH_COOKIE_NAME] || req.body.refreshToken;
+      const rawToken = req.cookies[REFRESH_COOKIE_NAME] || req.body?.refreshToken;
 
       if (!rawToken) {
         throw new UnauthorizedError('No refresh token provided');
@@ -50,6 +53,7 @@ export class AuthController {
         data: {
           user,
           accessToken,
+          refreshToken: newRefreshToken,
         },
       });
     } catch (error) {
@@ -59,18 +63,13 @@ export class AuthController {
 
   static async logout(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const rawToken = req.cookies[REFRESH_COOKIE_NAME] || req.body.refreshToken;
+      const rawToken = req.cookies[REFRESH_COOKIE_NAME] || req.body?.refreshToken;
 
       if (rawToken) {
         await AuthService.logout(rawToken);
       }
 
-      res.clearCookie(REFRESH_COOKIE_NAME, {
-        httpOnly: true,
-        secure: config.nodeEnv === 'production',
-        sameSite: 'strict',
-        path: '/',
-      });
+      res.clearCookie(REFRESH_COOKIE_NAME, cookieOptions);
 
       res.status(200).json({
         success: true,

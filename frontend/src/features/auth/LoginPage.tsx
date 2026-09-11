@@ -32,12 +32,19 @@ export const LoginPage: React.FC = () => {
       });
 
       if (res.data?.success && res.data?.data) {
-        const { user, accessToken } = res.data.data;
-        setAuth(user, accessToken);
+        const { user, accessToken, refreshToken } = res.data.data;
+        setAuth(user, accessToken, refreshToken);
         navigate('/dashboard');
       }
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.error?.message || 'Login failed. Please check your credentials.');
+      const serverMessage = err.response?.data?.error?.message;
+      if (serverMessage) {
+        setErrorMsg(serverMessage);
+      } else if (!err.response) {
+        setErrorMsg('Cannot reach backend server. Check your connection or Railway backend URL.');
+      } else {
+        setErrorMsg(`Server returned error (${err.response.status}). Please check backend logs.`);
+      }
     } finally {
       setIsLoading(false);
     }

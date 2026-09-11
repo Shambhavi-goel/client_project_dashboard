@@ -1,8 +1,9 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../auth/authStore';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL}/api`
+const rawApi = import.meta.env.VITE_API_URL;
+const API_BASE_URL = rawApi
+  ? `${rawApi.replace(/\/$/, '')}/api`
   : '/api';
 
 export const apiClient = axios.create({
@@ -75,16 +76,17 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        // Attempt token rotation via HttpOnly refresh cookie
+        const fallbackToken = localStorage.getItem('cpd_fallback_refresh');
+        // Attempt token rotation via HttpOnly refresh cookie or body fallback
         const refreshResponse = await axios.post(
-          '/api/auth/refresh',
-          {},
+          `${API_BASE_URL}/auth/refresh`,
+          { refreshToken: fallbackToken || undefined },
           { withCredentials: true }
         );
 
         if (refreshResponse.data?.success && refreshResponse.data?.data) {
-          const { user, accessToken } = refreshResponse.data.data;
-          useAuthStore.getState().setAuth(user, accessToken);
+          const { user, accessToken, refreshToken } = refreshResponse.data.data;
+          useAuthStore.getState().setAuth(user, accessToken, refreshToken);
 
           processQueue(null, accessToken);
 

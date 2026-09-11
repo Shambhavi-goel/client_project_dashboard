@@ -17,17 +17,17 @@ function daysAgo(days: number): Date {
 
 // ─── Main Seed ────────────────────────────────────────────────────────────────
 
-async function main() {
+export async function seedDatabase(client: PrismaClient = prisma) {
   console.log('🌱 Seeding database...\n');
 
   // ── Clean existing data ──────────────────────────────────────────────────
-  await prisma.notification.deleteMany();
-  await prisma.taskActivityLog.deleteMany();
-  await prisma.refreshToken.deleteMany();
-  await prisma.task.deleteMany();
-  await prisma.project.deleteMany();
-  await prisma.client.deleteMany();
-  await prisma.user.deleteMany();
+  await client.notification.deleteMany();
+  await client.taskActivityLog.deleteMany();
+  await client.refreshToken.deleteMany();
+  await client.task.deleteMany();
+  await client.project.deleteMany();
+  await client.client.deleteMany();
+  await client.user.deleteMany();
 
   // ── Users ────────────────────────────────────────────────────────────────
   const passwordHash = await bcrypt.hash('Password123!', 12);
@@ -44,7 +44,7 @@ async function main() {
 
   const createdUsers = await Promise.all(
     users.map((u) =>
-      prisma.user.create({ data: { ...u, passwordHash } })
+      client.user.create({ data: { ...u, passwordHash } })
     )
   );
 
@@ -59,13 +59,13 @@ async function main() {
 
   // ── Clients ──────────────────────────────────────────────────────────────
 
-  const client1 = await prisma.client.create({
+  const client1 = await client.client.create({
     data: { name: 'Zenith Technologies', contactEmail: 'contact@zenith.co' },
   });
-  const client2 = await prisma.client.create({
+  const client2 = await client.client.create({
     data: { name: 'NovaPulse Labs', contactEmail: 'hello@novapulse.io' },
   });
-  const client3 = await prisma.client.create({
+  const client3 = await client.client.create({
     data: { name: 'Crescendo Digital', contactEmail: 'info@crescendo.dev' },
   });
 
@@ -74,7 +74,7 @@ async function main() {
   // ── Projects ─────────────────────────────────────────────────────────────
   // PM1 owns 2 projects, PM2 owns 1 project
 
-  const project1 = await prisma.project.create({
+  const project1 = await client.project.create({
     data: {
       name: 'Zenith Cloud Migration',
       clientId: client1.id,
@@ -82,7 +82,7 @@ async function main() {
     },
   });
 
-  const project2 = await prisma.project.create({
+  const project2 = await client.project.create({
     data: {
       name: 'NovaPulse Mobile App',
       clientId: client2.id,
@@ -90,7 +90,7 @@ async function main() {
     },
   });
 
-  const project3 = await prisma.project.create({
+  const project3 = await client.project.create({
     data: {
       name: 'Crescendo E-Commerce Platform',
       clientId: client3.id,
@@ -222,7 +222,7 @@ async function main() {
   ];
 
   const createdTasks = await Promise.all(
-    tasks.map((t) => prisma.task.create({ data: t }))
+    tasks.map((t) => client.task.create({ data: t }))
   );
 
   console.log(`\n📋 Tasks created: ${createdTasks.length} tasks across 3 projects`);
@@ -331,7 +331,7 @@ async function main() {
     },
   ];
 
-  await prisma.taskActivityLog.createMany({ data: activityLogs });
+  await client.taskActivityLog.createMany({ data: activityLogs });
   console.log(`\n📝 Activity logs created: ${activityLogs.length} entries`);
 
   // ── Notifications ────────────────────────────────────────────────────────
@@ -404,17 +404,19 @@ async function main() {
     },
   ];
 
-  await prisma.notification.createMany({ data: notifications });
+  await client.notification.createMany({ data: notifications });
   console.log(`🔔 Notifications created: ${notifications.length} entries`);
 
   console.log('\n✅ Seed completed successfully!\n');
 }
 
-main()
-  .catch((e) => {
-    console.error('❌ Seed failed:', e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+if (require.main === module) {
+  seedDatabase()
+    .catch((e) => {
+      console.error('❌ Seed failed:', e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

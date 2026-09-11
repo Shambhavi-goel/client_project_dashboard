@@ -10,7 +10,9 @@ import { setSocketServer } from './emitters';
 export function setupSocketIO(httpServer: HttpServer): Server {
   const io = new Server(httpServer, {
     cors: {
-      origin: config.frontendUrl,
+      origin: (origin, callback) => {
+        callback(null, true);
+      },
       credentials: true,
       methods: ['GET', 'POST'],
     },

@@ -5,19 +5,19 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/src/index.js",
+    "start": "prisma migrate deploy && node dist/src/index.js",
     "test:auth": "tsx tests/auth.test.ts",
     "test:scoping": "tsx tests/scoping.test.ts",
     "test:realtime": "tsx tests/realtime.test.ts",
     "test:notifications": "tsx tests/notifications.test.ts",
     "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy && tsx prisma/seed.ts",
-    "db:seed": "prisma db seed",
+    "db:deploy": "prisma migrate deploy && node dist/prisma/seed.js",
+    "db:seed": "node dist/prisma/seed.js",
     "db:reset": "prisma migrate reset --force",
     "db:generate": "prisma generate"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "node dist/prisma/seed.js"
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
@@ -28,6 +28,7 @@
     "express": "^4.21.0",
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^3.0.3",
+    "prisma": "^6.9.0",
     "socket.io": "^4.8.0",
     "zod": "^3.23.8"
   },
@@ -39,7 +40,6 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.7.0",
     "@types/node-cron": "^3.0.11",
-    "prisma": "^6.9.0",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0"
   }
