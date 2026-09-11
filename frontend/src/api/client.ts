@@ -17,7 +17,9 @@ export const apiClient = axios.create({
 // Attach access token to outgoing requests
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = useAuthStore.getState().accessToken;
+    const token =
+      useAuthStore.getState().accessToken ||
+      sessionStorage.getItem('cpd_access_token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -76,7 +78,9 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const fallbackToken = localStorage.getItem('cpd_fallback_refresh');
+        const fallbackToken =
+          sessionStorage.getItem('cpd_fallback_refresh') ||
+          localStorage.getItem('cpd_fallback_refresh');
         // Attempt token rotation via HttpOnly refresh cookie or body fallback
         const refreshResponse = await axios.post(
           `${API_BASE_URL}/auth/refresh`,

@@ -39,7 +39,10 @@ export const Header: React.FC = () => {
 
   const handleLogout = async () => {
     try {
-      await apiClient.post('/auth/logout');
+      const fallbackToken =
+        sessionStorage.getItem('cpd_fallback_refresh') ||
+        localStorage.getItem('cpd_fallback_refresh');
+      await apiClient.post('/auth/logout', { refreshToken: fallbackToken || undefined });
     } catch {
       // Proceed even if logout call fails
     }
