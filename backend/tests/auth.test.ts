@@ -1,3 +1,4 @@
+process.env.NODE_ENV = 'test';
 import { app, httpServer } from '../src/index';
 import http from 'http';
 

@@ -144,12 +144,14 @@ async function ensureDatabaseReady() {
 
 if (process.env.NODE_ENV !== 'test') {
   ensureDatabaseReady().then(() => {
-    httpServer.listen(config.port, () => {
-      console.log(`\n🚀 Server running on http://localhost:${config.port}`);
-      console.log(`📡 Environment: ${config.nodeEnv}`);
-      console.log(`🔒 CORS Origin: ${config.frontendUrl}`);
-      console.log(`⚡ Socket.io listening on port ${config.port}\n`);
-    });
+    if (!httpServer.listening) {
+      httpServer.listen(config.port, () => {
+        console.log(`\n🚀 Server running on http://localhost:${config.port}`);
+        console.log(`📡 Environment: ${config.nodeEnv}`);
+        console.log(`🔒 CORS Origin: ${config.frontendUrl}`);
+        console.log(`⚡ Socket.io listening on port ${config.port}\n`);
+      });
+    }
   });
 }
 

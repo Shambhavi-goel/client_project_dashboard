@@ -5,7 +5,7 @@ import prisma from '../../lib/prisma';
 import { config } from '../../config';
 import { UnauthorizedError, ConflictError, BadRequestError } from '../../middleware/errorHandler';
 import { AuthUser } from '../../types/express';
-import { LoginInput, RegisterInput } from './auth.schemas';
+import { LoginInput, RegisterInput, SignupInput } from './auth.schemas';
 
 // Helper to hash refresh tokens with SHA-256 before DB storage
 function hashToken(token: string): string {
@@ -199,5 +199,62 @@ export class AuthService {
     });
 
     return user;
+  }
+
+  /**
+   * Public sign up: creates account and immediately establishes session
+   */
+  static async signup(input: SignupInput) {
+    const existing = await prisma.user.findUnique({
+      where: { email: input.email.toLowerCase() },
+    });
+
+    if (existing) {
+      throw new ConflictError('An account with this email already exists');
+    }
+
+    const passwordHash = await bcrypt.hash(input.password, 12);
+
+    const user = await prisma.user.create({
+      data: {
+        name: input.name.trim(),
+        email: input.email.toLowerCase().trim(),
+        passwordHash,
+        role: input.role || 'DEVELOPER',
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    const authUser: AuthUser = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    };
+
+    const accessToken = generateAccessToken(authUser);
+    const rawRefreshToken = generateRefreshToken();
+    const tokenHash = hashToken(rawRefreshToken);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await prisma.refreshToken.create({
+      data: {
+        userId: user.id,
+        tokenHash,
+        expiresAt,
+      },
+    });
+
+    return {
+      user: authUser,
+      accessToken,
+      refreshToken: rawRefreshToken,
+    };
   }
 }

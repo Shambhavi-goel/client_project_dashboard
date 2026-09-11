@@ -106,4 +106,23 @@ export class AuthController {
       next(error);
     }
   }
+
+  static async signup(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { user, accessToken, refreshToken } = await AuthService.signup(req.body);
+
+      res.cookie(REFRESH_COOKIE_NAME, refreshToken, cookieOptions);
+
+      res.status(201).json({
+        success: true,
+        data: {
+          user,
+          accessToken,
+          refreshToken,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }
