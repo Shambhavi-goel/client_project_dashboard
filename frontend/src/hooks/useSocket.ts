@@ -23,8 +23,10 @@ export function useSocket() {
       return;
     }
 
+    const socketUrl = import.meta.env.VITE_API_URL || '/';
+
     // Connect socket with Bearer token
-    const socket = io('/', {
+    const socket = io(socketUrl, {
       auth: { token: accessToken },
       transports: ['websocket', 'polling'],
       reconnection: true,

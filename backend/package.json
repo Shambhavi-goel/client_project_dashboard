@@ -5,12 +5,13 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/src/index.js",
     "test:auth": "tsx tests/auth.test.ts",
     "test:scoping": "tsx tests/scoping.test.ts",
     "test:realtime": "tsx tests/realtime.test.ts",
     "test:notifications": "tsx tests/notifications.test.ts",
     "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy && tsx prisma/seed.ts",
     "db:seed": "prisma db seed",
     "db:reset": "prisma migrate reset --force",
     "db:generate": "prisma generate"

@@ -36,9 +36,13 @@ export const useAuthStore = create<AuthState>((set) => ({
 
   checkAuth: async () => {
     try {
+      const authBase = import.meta.env.VITE_API_URL
+        ? `${import.meta.env.VITE_API_URL}/api`
+        : '/api';
+
       // Call /api/auth/refresh using credentials so browser sends HttpOnly cookie
       const res = await axios.post(
-        '/api/auth/refresh',
+        `${authBase}/auth/refresh`,
         {},
         { withCredentials: true }
       );
